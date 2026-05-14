@@ -9,7 +9,7 @@ from music21 import converter, interval, clef as music21_clef
 
 app = FastAPI()
 
-# Autorise tout le monde (dont ton React) à appeler le serveur
+# Configuration CORS pour ton interface React
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -75,13 +75,14 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
     try:
         output_name = file.filename.rsplit('.', 1)[0]
         
-        # CHANGEMENT 1 : Chemin Linux pour le serveur
-        audiveris_bin = "/opt/audiveris/bin/audiveris"
+        # ✅ CHEMIN MODIFIÉ pour la version installée via wget
+        audiveris_bin = "/usr/bin/audiveris"
 
-        # CHANGEMENT 2 : Mode "sans écran" pour éviter le crash Java
+        # ✅ Mode "sans écran" indispensable
         env = os.environ.copy()
         env["JAVA_OPTS"] = "-Djava.awt.headless=true"
 
+        # On lance Audiveris
         result = subprocess.run(
             [audiveris_bin, "-batch", "-transcribe", "-export", "-output", OUTPUT_DIR, pdf_path],
             capture_output=True,
@@ -89,6 +90,7 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
             env=env
         )
 
+        # Recherche du fichier généré
         fichiers_trouves = glob.glob(os.path.join(OUTPUT_DIR, f"{output_name}*.*"))
         fichier_cible = next((f for f in fichiers_trouves if f.lower().endswith(('.mxl', '.musicxml'))), None)
 
@@ -99,7 +101,8 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
                 xml_content = f.read()
             return Response(content=xml_content, media_type="application/xml")
         else:
-            return JSONResponse(status_code=500, content={"error": "Aucun fichier extrait", "details": result.stderr})
+            # En cas d'erreur, on renvoie les logs d'Audiveris pour comprendre
+            return JSONResponse(status_code=500, content={"error": "Audiveris n'a pas pu créer le fichier", "details": result.stderr})
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -107,6 +110,6 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
 # --- LANCEMENT ---
 if __name__ == "__main__":
     import uvicorn
-    # CHANGEMENT 3 : Le port est dynamique sur Render
+    import os
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
