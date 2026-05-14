@@ -76,7 +76,7 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
         output_name = file.filename.rsplit('.', 1)[0]
         
         # ✅ CHEMIN MODIFIÉ pour la version installée via wget
-        audiveris_bin = "/usr/bin/audiveris"
+        audiveris_bin = "audiveris"
 
         # ✅ Mode "sans écran" indispensable
         env = os.environ.copy()
