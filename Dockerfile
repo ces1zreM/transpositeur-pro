@@ -16,11 +16,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# TELECHARGEMENT DIRECT D'AUDIVERIS
+# TELECHARGEMENT DIRECT D'AUDIVERIS (Lien robuste)
 RUN wget https://github.com/Audiveris/audiveris/releases/download/v5.3/audiveris_5.3_amd64.deb -O installer.deb \
+    || wget https://github.com/Audiveris/audiveris/releases/latest/download/audiveris_5.3_amd64.deb -O installer.deb \
     && dpkg -x installer.deb / \
     && rm installer.deb
 
+    
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
