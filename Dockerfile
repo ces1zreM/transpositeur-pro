@@ -30,7 +30,7 @@ COPY . .
 # 4. Préparation des dossiers
 RUN mkdir -p temp_music output_music && chmod -R 777 /app
 
-# S'assurer que le binaire est accessible
-RUN ln -s /usr/bin/audiveris /usr/local/bin/audiveris || true
+# Correction du lien symbolique : on pointe vers le vrai fichier installé par le .deb
+RUN ln -s /opt/audiveris/bin/audiveris /usr/bin/audiveris && chmod +x /opt/audiveris/bin/audiveris
 
 CMD uvicorn main:app --host 0.0.0.0 --port $PORT
