@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# TELECHARGEMENT DIRECT D'AUDIVERIS (On contourne la limite GitHub)
-RUN wget https://github.com/Audiveris/audiveris/releases/download/v5.3.1/Audiveris-5.3.1-linux-x86_64.deb -O installer.deb \
+# TELECHARGEMENT DIRECT D'AUDIVERIS
+RUN wget https://github.com/Audiveris/audiveris/releases/download/v5.3/audiveris_5.3_amd64.deb -O installer.deb \
     && dpkg -x installer.deb / \
     && rm installer.deb
 
