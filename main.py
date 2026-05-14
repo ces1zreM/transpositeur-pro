@@ -23,23 +23,17 @@ OUTPUT_DIR = "./output_music"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# --- DETECTION AUTOMATIQUE D'AUDIVERIS ---
-# Cette partie cherche où le logiciel est installé sur Render
-audiveris_bin = shutil.which("audiveris")
+# --- CONFIGURATION AUDIVERIS (Méthode Portable) ---
+# On pointe vers le chemin exact créé par le nouveau Dockerfile
+audiveris_bin = "/app/audiveris_engine/bin/audiveris"
 
-if not audiveris_bin:
-    # Si la commande standard ne marche pas, on teste les chemins connus
-    test_paths = [
-        "/usr/bin/audiveris",
-        "/usr/bin/audiveris_final",
-        "/opt/audiveris/bin/audiveris"
-    ]
-    for p in test_paths:
-        if os.path.exists(p):
-            audiveris_bin = p
-            break
-
-print(f"--- LOG SYSTEME : Audiveris utilise ce chemin : {audiveris_bin} ---")
+# Log au démarrage pour vérifier dans la console Render
+if os.path.exists(audiveris_bin):
+    print(f"--- LOG SYSTEME : Audiveris est PRET sur : {audiveris_bin} ---")
+else:
+    # Au cas où, on cherche si la commande est quand même dans le système
+    audiveris_bin = shutil.which("audiveris")
+    print(f"--- LOG SYSTEME : Chemin alternatif trouvé : {audiveris_bin} ---")
 
 # --- DISPOSITIF 1 : TRANSPOSITION ---
 @app.post("/transpose")
@@ -90,17 +84,17 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
     with open(pdf_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    if not audiveris_bin:
-        return JSONResponse(status_code=500, content={"error": "Logiciel Audiveris introuvable sur le serveur."})
+    if not audiveris_bin or not os.path.exists(audiveris_bin):
+        return JSONResponse(status_code=500, content={"error": "Logiciel Audiveris introuvable sur le serveur. Vérifiez les logs de build."})
 
     try:
         output_name = file.filename.rsplit('.', 1)[0]
         
-        # ✅ Mode "sans écran" indispensable pour Render
+        # Mode sans écran indispensable pour Render
         env = os.environ.copy()
         env["JAVA_OPTS"] = "-Djava.awt.headless=true"
 
-        # On lance Audiveris avec le chemin détecté
+        # On lance Audiveris
         result = subprocess.run(
             [audiveris_bin, "-batch", "-transcribe", "-export", "-output", OUTPUT_DIR, pdf_path],
             capture_output=True,
@@ -108,8 +102,9 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
             env=env
         )
 
-        # Recherche du fichier généré
+        # Recherche du fichier généré dans le dossier d'output
         fichiers_trouves = glob.glob(os.path.join(OUTPUT_DIR, f"{output_name}*.*"))
+        # On cherche le premier fichier qui finit par mxl ou musicxml
         fichier_cible = next((f for f in fichiers_trouves if f.lower().endswith(('.mxl', '.musicxml'))), None)
 
         if fichier_cible and os.path.exists(fichier_cible):
@@ -120,8 +115,8 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
             return Response(content=xml_content, media_type="application/xml")
         else:
             return JSONResponse(status_code=500, content={
-                "error": "Le scan a échoué.", 
-                "details": result.stderr if result.stderr else "Le fichier n'a pas été généré."
+                "error": "Le scan a échoué ou n'a produit aucun fichier.", 
+                "details": result.stderr if result.stderr else "Audiveris n'a pas renvoyé d'erreur mais le fichier est absent."
             })
 
     except Exception as e:
