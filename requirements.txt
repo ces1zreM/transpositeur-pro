@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+music21
+requests
+pdf2image
+python-multipart
