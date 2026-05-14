@@ -30,7 +30,10 @@ COPY . .
 # 4. Préparation des dossiers
 RUN mkdir -p temp_music output_music && chmod -R 777 /app
 
-# Correction du lien symbolique : on pointe vers le vrai fichier installé par le .deb
-RUN ln -s /opt/audiveris/bin/audiveris /usr/bin/audiveris && chmod +x /opt/audiveris/bin/audiveris
+# On crée le lien symbolique CORRECT : du dossier d'installation vers le dossier des commandes système
+RUN ln -s /opt/audiveris/bin/audiveris /usr/bin/audiveris
+
+# On donne les droits d'exécution au cas où
+RUN chmod +x /opt/audiveris/bin/audiveris
 
 CMD uvicorn main:app --host 0.0.0.0 --port $PORT
