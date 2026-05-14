@@ -27,12 +27,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# 4. Préparation des dossiers
-RUN mkdir -p temp_music output_music && chmod -R 777 /app
-
-# 5. LOCALISATION AUTOMATIQUE DU BINAIRE
-# On cherche où est le fichier 'audiveris' et on crée le lien vers /usr/bin/
-RUN BIN_PATH=$(find /usr /opt -name audiveris -type f -executable | head -n 1) && \
-    ln -s $BIN_PATH /usr/bin/audiveris_final || true
+# 4. Préparation des dossiers (Indispensable)
+RUN mkdir -p temp_music output_music && chmod -R 777 /app temp_music output_music
 
 CMD uvicorn main:app --host 0.0.0.0 --port $PORT
