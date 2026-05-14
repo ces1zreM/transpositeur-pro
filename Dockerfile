@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# 2. Installation d'Audiveris 5.3 (Lien stable via un mirroir plus fiable)
+# 2. Installation d'Audiveris 5.3
 RUN wget https://github.com/Audiveris/audiveris/releases/download/v5.3/audiveris_5.3_amd64.deb -O installer.deb \
     && dpkg -i installer.deb || apt-get install -f -y \
     && rm installer.deb
@@ -30,10 +30,9 @@ COPY . .
 # 4. Préparation des dossiers
 RUN mkdir -p temp_music output_music && chmod -R 777 /app
 
-# On crée le lien symbolique CORRECT : du dossier d'installation vers le dossier des commandes système
-RUN ln -s /opt/audiveris/bin/audiveris /usr/bin/audiveris
-
-# On donne les droits d'exécution au cas où
-RUN chmod +x /opt/audiveris/bin/audiveris
+# 5. LOCALISATION AUTOMATIQUE DU BINAIRE
+# On cherche où est le fichier 'audiveris' et on crée le lien vers /usr/bin/
+RUN BIN_PATH=$(find /usr /opt -name audiveris -type f -executable | head -n 1) && \
+    ln -s $BIN_PATH /usr/bin/audiveris_final || true
 
 CMD uvicorn main:app --host 0.0.0.0 --port $PORT
