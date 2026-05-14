@@ -23,6 +23,24 @@ OUTPUT_DIR = "./output_music"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# --- DETECTION AUTOMATIQUE D'AUDIVERIS ---
+# Cette partie cherche où le logiciel est installé sur Render
+audiveris_bin = shutil.which("audiveris")
+
+if not audiveris_bin:
+    # Si la commande standard ne marche pas, on teste les chemins connus
+    test_paths = [
+        "/usr/bin/audiveris",
+        "/usr/bin/audiveris_final",
+        "/opt/audiveris/bin/audiveris"
+    ]
+    for p in test_paths:
+        if os.path.exists(p):
+            audiveris_bin = p
+            break
+
+print(f"--- LOG SYSTEME : Audiveris utilise ce chemin : {audiveris_bin} ---")
+
 # --- DISPOSITIF 1 : TRANSPOSITION ---
 @app.post("/transpose")
 async def transpose_file(
@@ -72,17 +90,17 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
     with open(pdf_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    if not audiveris_bin:
+        return JSONResponse(status_code=500, content={"error": "Logiciel Audiveris introuvable sur le serveur."})
+
     try:
         output_name = file.filename.rsplit('.', 1)[0]
         
-        # ✅ CHEMIN MODIFIÉ pour la version installée via wget
-        audiveris_bin = "/usr/bin/audiveris_final"
-
-        # ✅ Mode "sans écran" indispensable
+        # ✅ Mode "sans écran" indispensable pour Render
         env = os.environ.copy()
         env["JAVA_OPTS"] = "-Djava.awt.headless=true"
 
-        # On lance Audiveris
+        # On lance Audiveris avec le chemin détecté
         result = subprocess.run(
             [audiveris_bin, "-batch", "-transcribe", "-export", "-output", OUTPUT_DIR, pdf_path],
             capture_output=True,
@@ -101,8 +119,10 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
                 xml_content = f.read()
             return Response(content=xml_content, media_type="application/xml")
         else:
-            # En cas d'erreur, on renvoie les logs d'Audiveris pour comprendre
-            return JSONResponse(status_code=500, content={"error": "Audiveris n'a pas pu créer le fichier", "details": result.stderr})
+            return JSONResponse(status_code=500, content={
+                "error": "Le scan a échoué.", 
+                "details": result.stderr if result.stderr else "Le fichier n'a pas été généré."
+            })
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -110,6 +130,5 @@ async def convert_pdf_to_mxl(file: UploadFile = File(...)):
 # --- LANCEMENT ---
 if __name__ == "__main__":
     import uvicorn
-    import os
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
