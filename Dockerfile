@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Installation des dépendances + wget pour télécharger Audiveris
+# Installation de Java, Python et Audiveris (version dépôts Ubuntu)
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -9,25 +9,19 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
     tesseract-ocr-fra \
-    libasound2 \
-    libnss3 \
-    wget \
+    audiveris \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# TELECHARGEMENT DIRECT D'AUDIVERIS (Lien robuste)
-RUN wget https://github.com/Audiveris/audiveris/releases/download/v5.3/audiveris_5.3_amd64.deb -O installer.deb \
-    || wget https://github.com/Audiveris/audiveris/releases/latest/download/audiveris_5.3_amd64.deb -O installer.deb \
-    && dpkg -x installer.deb / \
-    && rm installer.deb
-
-    
+# Installation des bibliothèques Python
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Création des dossiers et droits
 RUN mkdir -p temp_music output_music && chmod -R 777 /app
 
+# Lancement
 CMD uvicorn main:app --host 0.0.0.0 --port $PORT
